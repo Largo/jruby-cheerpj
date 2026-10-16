@@ -19,14 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Exception: patch/src/org/jruby/javasupport/binding/ConstantField.java is derived
-from JRuby and is available under JRuby's licenses (EPL-2.0 / GPL-2.0 /
-LGPL-2.1), as stated in that file.
-
-Third-party software this project downloads at build time (JRuby, Processing,
-the Java libraries and Ruby gems listed in README.md) and the CheerpJ runtime
-loaded from Leaning Technologies' CDN are not part of this repository and keep
-their own licenses.
