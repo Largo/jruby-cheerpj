@@ -14,7 +14,7 @@ Technologies' CDN. You get:
 ## Quick start
 
 ```sh
-git clone <this repo> jruby-cheerpj && cd jruby-cheerpj
+git clone https://github.com/Largo/jruby-cheerpj.git && cd jruby-cheerpj
 ./run.sh            # fetch + verify everything into jars/, then serve http://127.0.0.1:8017/ (PORT=... to change)
 ./run.sh test       # headless Playwright test of the REPL page (own server on a free 127.0.0.1 port)
 ./run.sh test-demos # clicks and types through every demo
@@ -268,3 +268,11 @@ self-hosted page that doesn't need a CDN.
 - `docs/research/`: notes from the investigation. They cover what CheerpJ supports, why JRuby 10 is
   blocked, the stock-jar approach this repository uses, and a slimmed-jar experiment that booted about
   2-3 s faster but needed a bytecode-patching build pipeline.
+
+## License
+
+This project's own code is MIT-licensed (see `LICENSE`). The exception is
+`patch/src/org/jruby/javasupport/binding/ConstantField.java`, which is derived from JRuby and keeps
+JRuby's EPL-2.0 / GPL-2.0 / LGPL-2.1 licenses. Everything `./run.sh prepare` downloads keeps its own
+license: JRuby, Processing (LGPL-2.1), the Java libraries and the gems. So does the CheerpJ runtime
+(see "CheerpJ licensing" above).
