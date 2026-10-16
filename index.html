@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JRuby Browser REPL</title>
+<meta name="description" content="JRuby 9.4 (Ruby 3.1) running in the browser on CheerpJ 4.3, Java 17, stock jruby-complete jar.">
+<link rel="preconnect" href="https://cjrtnc.leaningtech.com">
+<link rel="preconnect" href="https://cjrtnc.leaningtech.com" crossorigin>
+<script src="https://cjrtnc.leaningtech.com/4.3/loader.js"></script>
+<style>
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --fg: #1d1d1b; --muted: #6b6a66; --line: #dddad2;
+    --accent: #b3261e; --ok: #2f6b3a; --err: #b3261e; --code-bg: #f3f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171716; --panel: #1f1f1d; --fg: #ecebe6; --muted: #9a9890; --line: #34332f;
+      --accent: #ff8a80; --ok: #8fd19e; --err: #ff8a80; --code-bg: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #171716; --panel: #1f1f1d; --fg: #ecebe6; --muted: #9a9890; --line: #34332f;
+    --accent: #ff8a80; --ok: #8fd19e; --err: #ff8a80; --code-bg: #262624;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h1 span { color: var(--accent); }
+  .muted { color: var(--muted); }
+  .sub { margin: 0 0 16px; font-size: .9rem; }
+  #status { display: flex; gap: 10px; align-items: center; font-size: .9rem; color: var(--muted); margin: 0 0 12px; min-height: 1.5em; }
+  #bar { flex: 0 0 140px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  #bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  #status.ready #bar, #status.failed #bar { display: none; }
+  #status.ready #msg { color: var(--ok); }
+  #status.failed #msg { color: var(--err); }
+  #log { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .entry { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .entry pre { margin: 0; padding: 8px 12px; white-space: pre-wrap; word-break: break-word; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .entry .src { background: var(--code-bg); border-bottom: 1px solid var(--line); }
+  .entry .src::before { content: "irb> "; color: var(--accent); }
+  .entry .res { color: var(--ok); }
+  .entry .err { color: var(--err); }
+  .entry .meta { font-size: .75rem; color: var(--muted); padding: 0 12px 6px; }
+  textarea { width: 100%; min-height: 130px; resize: vertical; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: var(--fg); font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 600; padding: 6px 18px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); font-weight: 500; }
+  button:disabled { opacity: .45; cursor: default; }
+  .hint { font-size: .8rem; }
+  details { margin-top: 22px; font-size: .85rem; }
+  .demos { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: .9rem; margin: -6px 0 14px; }
+  .demos a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .demos a:hover, .demos a[aria-current] { border-bottom-color: var(--accent); }
+  #display-wrap { margin: 14px 0 0; }
+  body.app-mode #display { height: min(780px, calc(100vh - 120px)); }
+  body.app-mode main { max-width: 1140px; }
+  #display { width: 100%; height: 480px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #e9e7e1; position: relative; }
+  #console { max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap;
+    word-break: break-word; font: 12px/1.4 ui-monospace, monospace; background: var(--panel); }
+  footer { margin-top: 22px; font-size: .8rem; color: var(--muted); }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>JRuby <span>in the browser</span></h1>
+  <p class="sub muted">JRuby 9.4.15.0 (Ruby 3.1.7) on CheerpJ 4.3, Java <span id="jv">17</span>, interpreter mode.
+    One Ruby runtime stays alive, so locals, methods and classes persist between runs. Everything runs on your machine.
+  </p>
+  <nav class="demos" aria-label="Demos">
+    <span class="muted">Demos (Ruby driving Java libraries):</span>
+    <a href="?app=ide" title="RSyntaxTextArea + FlatLaf">Ruby IDE</a>
+    <a href="?app=qr" title="ZXing">QR Code Studio</a>
+    <a href="?app=dice" title="JFreeChart">Law of Large Numbers</a>
+    <a href="?app=formula" title="JLaTeXMath + Java2D">Quadratic Solver</a>
+    <a href="?app=sql" title="H2 + Sequel">SQL Playground</a>
+    <a href="?app=physics" title="dyn4j">Physics Tower</a>
+    <a href="?app=polyglot" title="Rhino">JS ⇄ Ruby</a>
+    <a href="./">REPL only</a>
+  </nav>
+  <div id="status"><div id="bar"><i></i></div><span id="msg">Loading CheerpJ...</span></div>
+  <div id="log" aria-live="polite"></div>
+  <textarea id="code" spellcheck="false" aria-label="Ruby code">puts RUBY_DESCRIPTION
+puts [1,2,3].map { |x| x * 2 }.inspect
+class Foo; def hi = "hi"; end
+puts Foo.new.hi
+require 'set'
+p Set[1,2]</textarea>
+  <div class="row">
+    <button id="run" disabled>Run</button>
+    <button id="clear" class="ghost" type="button">Clear output</button>
+    <span id="timing" class="muted hint"></span>
+  </div>
+  <p class="muted hint">Ctrl+Enter (Cmd+Enter) runs. Alt+Up / Alt+Down walk the input history.</p>
+  <section id="display-wrap">
+    <p class="muted hint">Java windows (JFrame, Swing, AWT) appear here. Output from Java callbacks goes to the JVM console below.</p>
+    <div id="display"></div>
+  </section>
+  <details>
+    <summary class="muted">JVM console (raw System.out / System.err)</summary>
+    <!-- CheerpJ writes Java-level stdout/stderr into #console when it exists. -->
+    <pre id="console"></pre>
+  </details>
+  <footer>Powered by <a href="https://cheerpj.com/" rel="noopener">CheerpJ</a> (Leaning Technologies, Community License, CDN-hosted runtime)
+    and <a href="https://www.jruby.org/" rel="noopener">JRuby</a> (EPL-2.0 / GPL-2 / LGPL-2.1).</footer>
+</main>
+<script type="module">
+import { bootJRuby, javaErrorText } from "./jruby.js";
+
+// Query options: ?java=17|11|8  ?gems=1  ?warmup=0  ?preload=0  ?jar=path/to.jar  ?cp=a.jar,b.jar
+// Java windows (JFrame etc.) render into #display.
+// ?app=NAME runs apps/NAME.rb after boot with a big window area on top (e.g. ?app=ide).
+const q = new URLSearchParams(location.search);
+const opts = {
+  java: +(q.get("java") || 17),
+  gems: q.get("gems") === "1",
+  ...(q.get("warmup") === "0" ? { warmup: false } : {}),
+  preload: q.get("preload") !== "0",
+  ...(q.get("jar") ? { jar: q.get("jar") } : {}),
+  // Processing + Glimmer DSL for Swing (built by run.sh prepare). Missing jars are skipped by CheerpJ.
+  classpath: q.get("cp") != null ? q.get("cp").split(",").filter(Boolean)
+    : ["jars/processing-cheerpj-patch.jar", "jars/processing-core-4.5.7.jar", "jars/glimmer-swing-gems.jar",
+       "jars/rsyntaxtextarea-3.6.3.jar", "jars/flatlaf-3.7.2.jar", "jars/sequel-gems.jar",
+       "jars/core-3.5.4.jar", "jars/javase-3.5.4.jar", "jars/jfreechart-1.5.6.jar", "jars/h2-2.5.252.jar",
+       "jars/dyn4j-6.0.0.jar", "jars/rhino-1.9.1.jar", "jars/jlatexmath-1.0.7.jar"],
+  display: "#display",
+};
+
+const $ = (id) => document.getElementById(id);
+const app = /^[a-z0-9_-]+$/.test(q.get("app") || "") ? q.get("app") : null;
+for (const a of document.querySelectorAll(".demos a")) {
+  if ((a.getAttribute("href") === "./" && !app) || a.getAttribute("href") === `?app=${app}`) a.setAttribute("aria-current", "page");
+}
+if (app) {
+  // Before boot: CheerpJ sizes its display from the element when it is created.
+  document.body.classList.add("app-mode");
+  $("status").after($("display-wrap"));
+}
+$("jv").textContent = opts.java;
+const bar = $("bar").firstElementChild;
+const setStatus = (text, pct) => { $("msg").textContent = text; if (pct != null) bar.style.width = pct + "%"; };
+
+const history = [];
+let hpos = 0;
+
+function render(code, r) {
+  const e = document.createElement("div");
+  e.className = "entry";
+  const add = (cls, text) => { const p = document.createElement("pre"); p.className = cls; p.textContent = text; e.appendChild(p); };
+  add("src", code);
+  if (r.out) add("out", r.out.replace(/\n$/, ""));
+  add(r.ok ? "res" : "err", r.result);
+  const m = document.createElement("div");
+  m.className = "meta"; m.textContent = `${r.ms} ms`;
+  e.appendChild(m);
+  $("log").appendChild(e);
+  e.scrollIntoView({ block: "nearest" });
+}
+
+let ruby = null;
+async function run() {
+  const code = $("code").value;
+  if (!ruby || !code.trim() || $("run").disabled) return;
+  $("run").disabled = true;
+  history.push(code); hpos = history.length;
+  try {
+    const r = await ruby.eval(code);
+    render(code, r);
+    $("timing").textContent = `last eval ${r.ms} ms`;
+    $("code").value = "";
+  } finally {
+    $("run").disabled = false;
+    $("code").focus();
+  }
+}
+$("run").addEventListener("click", run);
+$("clear").addEventListener("click", () => { $("log").textContent = ""; });
+$("code").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); run(); }
+  else if (ev.altKey && (ev.key === "ArrowUp" || ev.key === "ArrowDown") && history.length) {
+    ev.preventDefault();
+    hpos = Math.max(0, Math.min(history.length, hpos + (ev.key === "ArrowUp" ? -1 : 1)));
+    $("code").value = history[hpos] ?? "";
+  }
+});
+
+// window.jruby is the page's test/automation API: await jruby.ready; await jruby.eval(code).
+window.jruby = { options: opts, timings: null };
+window.jruby.ready = bootJRuby({ ...opts, onStatus: setStatus }).then(async (rb) => {
+  ruby = rb;
+  window.jruby.eval = rb.eval;
+  window.jruby.timings = rb.timings;
+  const t = rb.timings;
+  setStatus(`Ready: booted in ${(t.bootTotal / 1000).toFixed(1)} s (Ruby.newInstance ${(t.rubyNewInstance / 1000).toFixed(1)} s)`);
+  $("status").className = "ready";
+  $("run").disabled = false;
+  if (app) {
+    setStatus(`Ready in ${(t.bootTotal / 1000).toFixed(1)} s. Starting apps/${app}.rb...`);
+    const src = await (await fetch(`apps/${app}.rb`)).text();
+    const r = await rb.eval(src);
+    if (!r.ok) render(`# apps/${app}.rb`, r);
+    setStatus(r.ok ? `Ready: booted in ${(t.bootTotal / 1000).toFixed(1)} s, apps/${app}.rb started in ${(r.ms / 1000).toFixed(1)} s`
+                   : `apps/${app}.rb failed (see below)`);
+  } else {
+    $("code").focus();
+  }
+  return t;
+}).catch(async (e) => {
+  const m = await javaErrorText(e);
+  try { if (e && e.printStackTrace) await e.printStackTrace(); } catch (_) {}
+  setStatus("Boot failed: " + m + " (see JVM console)");
+  $("status").className = "failed";
+  throw new Error(m);
+});
+</script>
+</body>
+</html>

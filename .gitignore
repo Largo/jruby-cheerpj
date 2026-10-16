@@ -1,0 +1,9 @@
+# Everything in jars/ is downloaded from Maven Central / rubygems.org or built locally by
+# ./run.sh prepare (overlay jars, packed gems). Nothing third-party is committed.
+/jars/
+*.part
+
+# local runs
+serve.log
+node_modules/
+.DS_Store
